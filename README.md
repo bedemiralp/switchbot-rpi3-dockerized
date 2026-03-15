@@ -1,102 +1,68 @@
-# python-host
+# switchbot-dockerized
+[![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
 
-# What is the SwitchBot opensource project?
-[SwitchBot](https://www.switch-bot.com) is a smart IoT robot to mechanically control all your switches and buttons. You can control the bot by your smartphone app ([iOS](https://itunes.apple.com/app/SwitchBot/id1087374760?mt=8) or  [Android](https://play.google.com/store/apps/details?id=com.theSwitchBot.SwitchBot), SwitchLink, or other platform based on our open APIs.
+# About this project
 
-This project aims to provide a super light-weight solution to control your SwitchBot on [Raspberry Pi](https://www.raspberrypi.org)/[OpenWRT](https://openwrt.org/) or any other Linux based board.
+- Forked from https://github.com/OpenWonderLabs/python-host
+- Dockerized to run on an Ubuntu host with Bluetooth Low Energy support
+- Made various improvements
 
-The python-host distribution is supported and tested on Python 2.7.
+## Security model and warning
 
-# How to Install?
+This container is provided for packaging and convenience. It is not intended to isolate the workload from the host.
 
-## On Raspberry Pi
+The default runtime configuration gives the container direct access to host interfaces that are required for Linux BLE operation:
+
+- `--network host`
+- `--cap-add NET_ADMIN`
+- `--cap-add NET_RAW`
+- `-v /var/run/dbus:/var/run/dbus`
+
+As a result, you should treat this container the same way you would treat running `python3 switchbot_py3.py` directly on the host with access to the host Bluetooth stack and host D-Bus.
+
+Before using it, assume the following:
+
+- The code running in the container is trusted to interact with host services.
+- A compromise of the container can have host impact through the mounted D-Bus socket and granted capabilities.
+- This setup is not a security boundary and should not be used to run untrusted code.
+- The image, dependencies, and this repository should be reviewed with the same care as any host-installed software.
+
+If you need isolation, use a different design. This project assumes direct host integration is acceptable for the intended environment.
+
+## How to Install?
+
+### Host requirements
 You will need:
-  -  A Raspberry Pi 3 or A Raspberry Pi 2 plugged with a [Bluetooth dongle](https://www.amazon.com/Plugable-Bluetooth-Adapter-Raspberry-Compatible/dp/B009ZIILLI/ref=sr_1_3?s=electronics&ie=UTF8&qid=1487679848&sr=1-3&keywords=bluetooth+dongle).
-  -  A SwitchBot.
-  -  An SD Card with a fresh install of Raspbian (tested against the latest build [2017-01-11 Jessie with Pixel](https://www.raspberrypi.org/downloads/raspbian/)).
+  - An Ubuntu host with a working Bluetooth Low Energy adapter.
+  - On a Raspberry Pi 3, the built-in Bluetooth adapter is usually sufficient.
+  - On a non-Raspberry Pi host, use a BLE-capable USB dongle that is supported by BlueZ on Linux.
+  - A SwitchBot.
+  - A fresh Ubuntu installation (tested with Ubuntu 22.04).
 
-## Installation
-  1. Boot your fresh Pi and open a command prompt.
-  2. Install the require library.
-```sh
-sudo apt-get update
-sudo apt-get install python-pexpect
-sudo apt-get install libusb-dev libdbus-1-dev libglib2.0-dev 
-sudo apt-get install libudev-dev libical-dev libreadline-dev
-sudo pip install bluepy
-```
-  3. Clone this repo to the Pi.
-```sh
-git clone https://github.com/OpenWonderLabs/python-host.git
-cd python-host
-```
-## Running
+This project is not Raspberry Pi specific. It uses the standard Linux Bluetooth stack through BlueZ and expects a host adapter such as `hci0` to be available to the container.
 
-You can use in two ways:
-
-1. Scan and control by device name.
+### Installation
+1. Boot your Ubuntu host and open a command prompt.
+2. Install Docker on Ubuntu by following the official instructions:
+   https://docs.docker.com/engine/install/ubuntu/
+3. Make sure the Bluetooth adapter is available on the host.
+4. Clone this repo to the host.
 
 ```sh
-sudo python switchbot.py
+git clone https://github.com/bedemiralp/switchbot-dockerized
+cd switchbot-dockerized
 ```
-Follow the instruction, input the device number for SwitchBot you want to control.
 
-2. Control SwitchBot by MAC address. (MAC address should be retrived in advanced)
+5. Use the included bash scripts to build and run the container.
 
 ```sh
-sudo python switchbot.py [mac_addr action_cmd]
+./build-container.sh
+./start-container.sh
 ```
 
-action_cmd :Press, Turn On, Turn Off.
+The container is started with host networking, Bluetooth capabilities, and the host D-Bus socket mounted. Those assumptions are required for both Raspberry Pi and non-Raspberry Pi Ubuntu hosts.
 
-```
-eg: sudo python switchbot.py  xx:xx:xx:xx:xx:xx Press
-```
-
-## Python 3 and new bluetooth stack support
-
-The original `switchbot.py` script will work only on Python 2 and it relies on the old Bluez utils (like `hciconfig` and `hcitool`) that have been deprecated in the latest Bluez releases.
-
-If you want to use the script on Python 3 or on a Linux distro that no longer ships Bluez with the old tools, use the switchbot_py3.py script instead.
-
-To install the required dependencies on Debian 11 "Bullseye", Raspberry Pi OS or Ubuntu 21.10 or later:
-
-```sh
-sudo apt install python3-bluez
-```
-
-On older versions of Ubuntu/Debian/Raspbian:
-
-```shell
-sudo apt-get install python3-pip
-sudo apt-get install libbluetooth-dev
-pip3 install pybluez
-sudo apt-get install libboost-python-dev
-sudo apt-get install libboost-thread-dev
-pip3 install gattlib
-```
-
-If for some reason the gattlib installation fails:
-
-```sh
-sudo apt-get install pkg-config python3-dev
-sudo apt-get install libglib2.0-dev
-
-pip3 download gattlib
-tar xvzf ./gattlib-0.20150805.tar.gz
-cd gattlib-0.20150805/
-sed -ie 's/boost_python-py34/boost_python-py36/' setup.py # "py36" might be "py37" (for example). Check "python3 --version"
-pip3 install .
-```
-
-Type `python3 switchbot_py3.py -h/--help` for usage tips.
-```
-eg: sudo python3 switchbot_py3.py -d xx:xx:xx:xx:xx:xx -c close
-```
-
-Enjoy :)
-
-# References
+## References
 
 [SwitchBotAPI-BLE](https://github.com/OpenWonderLabs/SwitchBotAPI-BLE) 
 
@@ -110,18 +76,9 @@ Enjoy :)
 
 - [Motion Sensor BLE open api](https://github.com/OpenWonderLabs/SwitchBotAPI-BLE/blob/latest/devicetypes/motionsensor.md)
 
-# Thanks to contributors
+## Thanks to contributors
 [@BlackLight](https://github.com/BlackLight)
 
 [@rcmdnk](https://github.com/rcmdnk)
 
 [@tony-wallace](https://github.com/tony-wallace)
-
-
-# Community
-
-[SwitchBot (Official website)](https://www.switch-bot.com/)
-
-[Facebook @SwitchBotRobot](https://www.facebook.com/SwitchBotRobot/) 
-
-[Twitter @SwitchBot](https://twitter.com/switchbot) 
